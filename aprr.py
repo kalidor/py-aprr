@@ -59,7 +59,7 @@ class APRR():
             sys.exit(1)
 
         if prox:
-            3proxy = {
+            proxy = {
                     'http'  : 'http://127.0.0.1:8080',
                     'https' : 'http://127.0.0.1:8080'
                     }

@@ -7,11 +7,12 @@
 """
 import requests
 import urllib3
-import argparse
 import sys, re, csv, json
-from os.path import isfile
+from os.path import isfile, dirname, abspath
+from os.path import join as pathjoin
 from os import getenv
 from datetime import datetime
+
 urllib3.disable_warnings()
 # requests: http://docs.python-requests.org/en/master/
 
@@ -22,11 +23,13 @@ Exceptions = {}
 Exceptions['STE HELENE'] = 'SAINT-HELENE'
 Exceptions['ST QUENTIN FAL. BARR'] = 'ST QUENTIN FALLAVIER'
 Exceptions['ST-GERMAIN-LAXIS'] = 'SAINT GERMAIN LAXIS'
+DATA_DIR = dirname(abspath(__file__))
 
 class Peages():
     def __init__(self):
         print('[+] Peages initialization')
-        self.f = open('peages-2017.csv')
+        filename = pathjoin(DATA_DIR, 'data/peages-2017.csv')
+        self.f = open(filename)
         self.gares = csv.DictReader(self.f)
 
     def search(self, gare):
@@ -43,10 +46,12 @@ class Peages():
         if data:
             return data
 
-
     def __del__(self):
-        self.f.close()
-        print('[i] Closing peage file')
+        try:
+            self.f.close()
+            print('[i] Closing peage file')
+        except:
+            print('[!] Cannot close peage file')
 
 class APRR():
     def __init__(self, download, prox):
@@ -148,23 +153,3 @@ class APRR():
             print('{}: {}({}) -> {}({}) [{}] - {}'.format(_date, _gare_entree,_autoroute_entree, _gare_sortie,_autoroute_sortie, _classe, _prix))
         #print(r.json())
 
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-x', '--proxy',
-    help="Proxy-fication",
-    action="store_true")
-parser.add_argument('-d', '--download',
-    help="Download factures",
-    action="store_true")
-parser.add_argument('-l', '--list',
-    help="List available facture",
-    action="store_true")
-parser.add_argument('-u', '--unpayed',
-    help="List not payed trip yet",
-    action="store_true")
-args = parser.parse_args()
-aprr = APRR(args.download, args.proxy)
-if args.unpayed:
-    aprr.list_unpayed_trip()
-if args.list or args.download:
-    aprr.factures()

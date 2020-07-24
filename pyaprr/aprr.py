@@ -12,6 +12,8 @@ from os.path import isfile, dirname, abspath
 from os.path import join as pathjoin
 from os import getenv
 from datetime import datetime
+from pkg_resources import resource_stream
+from codecs import getreader
 
 urllib3.disable_warnings()
 # requests: http://docs.python-requests.org/en/master/
@@ -23,19 +25,19 @@ Exceptions = {}
 Exceptions['STE HELENE'] = 'SAINT-HELENE'
 Exceptions['ST QUENTIN FAL. BARR'] = 'ST QUENTIN FALLAVIER'
 Exceptions['ST-GERMAIN-LAXIS'] = 'SAINT GERMAIN LAXIS'
-DATA_DIR = dirname(abspath(__file__))
+DATA_FILE = 'data/peages-2017.csv'
 
 class Peages():
     def __init__(self):
         print('[+] Peages initialization')
-        filename = pathjoin(DATA_DIR, 'data/peages-2017.csv')
-        self.f = open(filename)
-        self.gares = csv.DictReader(self.f)
+        self.f = resource_stream(__name__, DATA_FILE)
+        utf8_reader = getreader("utf-8")
+        self.gares = csv.DictReader(utf8_reader(self.f))
         num = 0
         for i in self.gares:
             num += 1
         num -= 1
-        print('[+] {} gares loaded'.format(num))
+        print('[+] {} gares'.format(num))
 
     def search(self, gare):
         self.f.seek(0) # Start from the beginning since csv.DirectReader is ... a reader

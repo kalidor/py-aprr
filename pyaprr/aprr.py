@@ -31,9 +31,14 @@ class Peages():
         filename = pathjoin(DATA_DIR, 'data/peages-2017.csv')
         self.f = open(filename)
         self.gares = csv.DictReader(self.f)
+        num = 0
+        for i in self.gares:
+            num += 1
+        num -= 1
+        print('[+] {} gares loaded'.format(num))
 
     def search(self, gare):
-        self.f.seek(0) # Start from the beginning
+        self.f.seek(0) # Start from the beginning since csv.DirectReader is ... a reader
         data = None
         if "BARRIERE" in gare:
             gare = gare.replace("BARRIERE", "").strip()

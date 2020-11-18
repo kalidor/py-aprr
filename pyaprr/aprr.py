@@ -102,12 +102,12 @@ class APRR():
         a = {}
         for i in res:
             if i[0] == '__EVENTTARGET':
-                a[i[0]] = 'ctl00$PlaceHolderMain$LbnButtonConnection'
+                a[i[0]] = 'ctl00$PlaceHolderMain$ConsoBlocTemplateControl$ConnexionAscx$LbnButtonConnection'
             else:
                 a[i[0]] = i[1]
-        a['ctl00$FlagsLanguagesControl$DdlLanguages'] = 'https://espaceclient.aprr.fr/aprr/PublishingImages/Multilingue/_t/france_png.jpg'
-        a['ctl00$PlaceHolderMain$TextBoxLogin'] = self.creds['username']
-        a['ctl00$PlaceHolderMain$TextBoxPass'] = self.creds['passwd']
+        a['ctl00$LanguagesControl$DdlLanguages'] = 'fr-FR'#https://espaceclient.aprr.fr/aprr/PublishingImages/Multilingue/_t/france_png.jpg'
+        a['ctl00$PlaceHolderMain$ConsoBlocTemplateControl$ConnexionAscx$TbxLogin'] = self.creds['username']
+        a['ctl00$PlaceHolderMain$ConsoBlocTemplateControl$ConnexionAscx$TbxPassword'] = self.creds['passwd']
         a['__spDummyText1'] = ''
         a['__spDummyText2'] = ''
         a['_wpcmWpid'] = ''
@@ -127,7 +127,7 @@ class APRR():
         print('Factures:')
         r = self.s.get('https://espaceclient.aprr.fr/aprr/Pages/MaConsommation/conso_factures.aspx')
 
-        res = re.findall(r'<td class="first">\s*(.*)\r\s*</td>\s*<td class="column2">\s*(.*)\r\s*</td>\s*<td class="column3">\s*(.*)\r\s*</td>', r.text)
+        res = re.findall(r'<td class="tableElementCell">\s*(.*)\r\s*</td>\s*<td class="tableElementCell">\s*(.*)\r\s*</td>\s*<td class="tableElementCell">\s*(.*)\r\s*</td>', r.text)
         for i in res:
             print(i)
             # download pdf

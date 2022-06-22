@@ -1,28 +1,83 @@
 #!/usr/bin/env python3
 
-# (c) 2020 Gregory Charbonneau
-# distributes under the terms of the wtfpl (sam.zoy.org/wtfpl/)
-#
+from ten import *
+from tenlib import *
+from typing import Tuple
+from os.path import exists
+import sys, json, os
 
-from pyaprr.aprr import *
-import argparse
 
-parser = argparse.ArgumentParser(epilog="Using ~/.aprr.config\n{'username': '<APRR_ID>', 'passwd':'<PASSWORD_ID>'}")
-parser.add_argument('-x', '--proxy',
-    help="Proxy-fication",
-    action="store_true")
-parser.add_argument('-d', '--download',
-    help="Download factures",
-    action="store_true")
-parser.add_argument('-l', '--list',
-    help="List available facture",
-    action="store_true")
-parser.add_argument('-u', '--unpayed',
-    help="List not payed trip yet",
-    action="store_true")
-args = parser.parse_args()
-aprr = APRR(args.download, args.proxy)
-if args.unpayed:
-    aprr.list_unpayed_trip()
-if args.list or args.download:
-    aprr.factures()
+def journey(s):
+    out.info("Getting journey")
+    r = s.get("/customer-space/invoices/journeys")
+    entrees = [
+        i.find("div", {"class": "journey-consumption__station-info"}).get_text().strip()
+        for i in r.soup.find_all("div", {"class": "journey-consumption__entry-station"})
+    ]
+    exites = [
+        i.find("div", {"class": "journey-consumption__station-info"}).get_text().strip()
+        for i in r.soup.find_all("div", {"class": "journey-consumption__exit-station"})
+    ]
+    prices = [
+        i.find("div", {"class": "journey-consumption__price-info"}).get_text().strip()
+        for i in r.soup.find_all("div", {"class": "journey-consumption__price"})
+    ]
+    times = [
+        i.find("div", {"class": "journey-consumption__time-info"}).get_text().strip()
+        for i in r.soup.find_all("div", {"class": "journey-consumption__badge"})
+    ]
+    a = ["Date;Depart;Arrivée;Prix"]
+    for i in range(0, len(entrees)):
+        a.append("{};{};{};{}".format(times[i], entrees[i], exites[i], prices[i]))
+    utils.table.display("\n".join(a), "\n", ";")
+
+
+def download_pdf(s, link, filename):
+    with open(f"{filename}.pdf", "wb") as fd:
+        with s.get(link, stream=True) as r:
+            for chunk in r.iter_content(chunk_size=128):
+                fd.write(chunk)
+
+
+def factures(s, list):
+    out.info("Get history")
+    r = s.get("/customer-space/invoices/history/0/24")
+
+    for i in r.soup.find_all("li", {"class": "invoice-info__list-item"}):
+        price = i.find("div", {"class": "invoice-info__price-info"}).get_text().strip()
+        link = i.find("a", {"class": "btn"}).get("href")
+        month = link.split("/")[-1]
+        if list:
+            print(f"{month}: {price}")
+            continue
+        if exists(f"{month}.pdf"):
+            print(f"{month}: {price} [Already done]")
+            sys.exit(0)
+        else:
+            download_pdf(s, link, month)
+            print(f"{month}: {price} [Downloaded]")
+
+
+@Flow
+def main(config: str = ".config/aprr.cfg", current: bool = False, list: bool = False):
+    fc = open("{}/{}".format(os.getenv("HOME"), config))
+    creds = json.load(fc)
+    fc.close()
+    out.info("Running...")
+    s = ScopedSession("https://www.mango-mobilitesbyaprr.com/")
+    r = s.get("/customer/login")
+    f = r.form(id="kc-form-login")
+    f["username"] = creds["username"]
+    f["password"] = creds["passwd"]
+    r = f.submit()
+    if r.contains("Identifiez-vous"):
+        failure("Authentication failed")
+    else:
+        out.success("Authenticated")
+    if current:
+        journey(s)
+
+    factures(s, list)
+
+
+main()

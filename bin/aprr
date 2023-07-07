@@ -35,17 +35,17 @@ def journey(s):
 
 def download_pdf(s, link, filename):
     with open(f"{filename}.pdf", "wb") as fd:
-        with s.get(link, stream=True) as r:
-            for chunk in r.iter_content(chunk_size=128):
+        with s.stream("GET", link) as r:
+            for chunk in r.iter_bytes(chunk_size=128):
                 fd.write(chunk)
 
 
 def factures(s, list, table):
     out.info("Get history")
     r = s.get("/customer-space/invoices/history/0/24")
-    for i in r.soup.find_all("li", {"class": "invoice-info__list-item"}):
-        price = i.find("div", {"class": "invoice-info__price-info"}).get_text().strip()
-        link = i.find("a", {"class": "btn"}).get("href")
+    for i in r.soup.find_all("li", {"class": "data-list__item"}):
+        price = i.find("div", {"class": "InvoiceInfo-list-item-price-info"}).get_text().strip()
+        link = i.find("a", {"class": "Button"}).get("href")
         month = link.split("/")[-1]
         status = ""
         if list:
@@ -54,7 +54,7 @@ def factures(s, list, table):
         if exists(f"{month}.pdf"):
             status = "Already done"
             table.add_row(month, price, status)
-            return
+            #return
         else:
             download_pdf(s, link, month)
             status = "Downloaded"
@@ -68,11 +68,11 @@ def main(config: str = ".config/aprr.cfg", current: bool = False, list: bool = F
     creds = json.load(fc)
     fc.close()
     out.info("Running...")
-    s = ScopedSession("https://www.mango-mobilitesbyaprr.com/")
+    s = ScopedSession("https://www.mango-mobilitesbyaprr.com/", follow_redirects=True)
     if proxy:
         s.burp()
     r = s.get("/customer/login")
-    f = r.form(id="kc-form-login")
+    f = r.form(id="kc-form-login")[0]
     f["username"] = creds["username"]
     f["password"] = creds["passwd"]
     r = f.submit()

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-
-from ten import *
-from tenlib import *
-from typing import Tuple
+import json
+import os
 from os.path import exists
-import sys, json, os
+
 from rich.console import Console
 from rich.table import Table
 
+from ten import info, failure, success, ScopedSession, Flow
+from tenlib import utils
+
+
 def journey(s):
-    out.info("Getting journey")
+    info("Getting journey")
     r = s.get("/customer-space/invoices/journeys")
     entrees = [
         i.find("div", {"class": "journey-consumption__station-info"}).get_text().strip()
@@ -28,8 +30,8 @@ def journey(s):
         for i in r.soup.find_all("div", {"class": "journey-consumption__badge"})
     ]
     a = ["Date;Depart;Arrivée;Prix"]
-    for i in range(0, len(entrees)):
-        a.append("{};{};{};{}".format(times[i], entrees[i], exites[i], prices[i]))
+    for i, _ in enumerate(entrees):
+        a.append(f"{times[i]}; {entrees[i]};{exites[i]};{prices[i]}")
     utils.table.display("\n".join(a), "\n", ";")
 
 
@@ -40,38 +42,60 @@ def download_pdf(s, link, filename):
                 fd.write(chunk)
 
 
-def factures(s, list, table):
-    out.info("Get history")
+def factures(s, liste: bool, table: Table):
+    info("Get history")
     r = s.get("/customer-space/invoices/history/0/24")
     for i in r.soup.find_all("li", {"class": "data-list__item"}):
-        price = i.find("div", {"class": "InvoiceInfo-list-item-price-info"}).get_text().strip()
+        price = (
+            i.find("div", {"class": "InvoiceInfo-list-item-price-info"})
+            .get_text()
+            .strip()
+        )
         link = i.find("a", {"class": "Button"}).get("href")
         month = link.split("/")[-1]
         status = ""
-        if list:
+        if liste:
             table.add_row(month, price, status)
             continue
         if exists(f"{month}.pdf"):
             status = "Already done"
             table.add_row(month, price, status)
-            #return
+            # return
         else:
             download_pdf(s, link, month)
             status = "Downloaded"
             table.add_row(month, price, status)
 
 
-
 @Flow
-def main(config: str = ".config/aprr.cfg", current: bool = False, list: bool = False, proxy: bool = False):
+def main(
+    config: str = ".config/aprr.cfg",
+    current: bool = False,
+    liste: bool = False,
+    proxy: bool = False,
+):
     fc = open("{}/{}".format(os.getenv("HOME"), config))
     creds = json.load(fc)
     fc.close()
-    out.info("Running...")
-    s = ScopedSession("https://www.mango-mobilitesbyaprr.com/", follow_redirects=True)
+    info("Running...")
+    s = ScopedSession(
+        "https://www.mango-mobilitesbyaprr.com/",
+        follow_redirects=True,
+        timeout=30,
+    )
     if proxy:
         s.burp()
+
     r = s.get("/customer/login")
+    go = True
+    while go:
+        print(r.status_code)
+        print(f"client: is redirect {r.is_redirect}")
+        if r.is_redirect:
+            r = s.follow(r.next_request)
+        else:
+            go = False
+    print(f"client {r.headers}")
     f = r.form(id="kc-form-login")[0]
     f["username"] = creds["username"]
     f["password"] = creds["passwd"]
@@ -79,7 +103,7 @@ def main(config: str = ".config/aprr.cfg", current: bool = False, list: bool = F
     if r.contains("Identifiez-vous"):
         failure("Authentication failed")
     else:
-        out.success("Authenticated")
+        success("Authenticated")
     if current:
         journey(s)
 
@@ -87,8 +111,9 @@ def main(config: str = ".config/aprr.cfg", current: bool = False, list: bool = F
     table.add_column("Date")
     table.add_column("Euros")
     table.add_column("Comments")
-    factures(s, list, table)
+    factures(s, liste, table)
     console = Console()
     console.print(table)
+
 
 main()

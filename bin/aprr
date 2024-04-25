@@ -16,6 +16,7 @@ from typing import NoReturn
 
 
 def journey(s) -> NoReturn:
+    # TODO: fix this
     info("Getting journey")
     r = s.get("/customer-space/invoices/journeys")
     entrees = [
@@ -40,7 +41,7 @@ def journey(s) -> NoReturn:
     utils.table.display("\n".join(a), "\n", ";")
 
 
-def download_pdf(s, link, filename, output_dir:Path) -> NoReturn:
+def download_pdf(s, link, filename, output_dir: Path) -> NoReturn:
     outfile = output_dir / f"{filename}.pdf"
     with outfile.open("wb") as fd:
         with s.stream("GET", link) as r:
@@ -48,7 +49,7 @@ def download_pdf(s, link, filename, output_dir:Path) -> NoReturn:
                 fd.write(chunk)
 
 
-def factures(s, liste: bool, table: Table, output_dir:Path) -> NoReturn:
+def factures(s, liste: bool, table: Table, output_dir: Path) -> NoReturn:
     info("Get history")
     r = s.get("/customer-space/invoices/history/0/24")
     for i in r.soup.find_all("li", {"class": "data-list__item"}):
@@ -74,13 +75,22 @@ def factures(s, liste: bool, table: Table, output_dir:Path) -> NoReturn:
             table.add_row(month, price, status)
 
 
+def download_xls(s, output_dir):
+    outfile = output_dir / "current_journeys.xlsx"
+    info(f"Getting current journeys (not paied yet): '{outfile.stem}'")
+    with outfile.open("wb") as fd:
+        with s.stream("GET", "/customer-space/journey/export-xlsx") as r:
+            for chunk in r.iter_bytes(chunk_size=128):
+                fd.write(chunk)
+
+
 @Flow
 def main(
     config: str = ".config/aprr.cfg",
     current: bool = False,
     liste: bool = False,
     proxy: bool = False,
-    output_dir: Path = Path("./PDFs")
+    output_dir: Path = Path("./PDFs"),
 ):
     if not output_dir.exists():
         info(f"'{output_dir.stem}' doesn't exist. Creating...")
@@ -117,6 +127,7 @@ def main(
         success("Authenticated")
     if current:
         journey(s)
+        download_xls(s, output_dir)
 
     table = Table(title="Factures")
     table.add_column("Date")

@@ -54,6 +54,7 @@ def factures(s, liste: bool, table: Table):
         link = i.find("a", {"class": "Button"}).get("href")
         month = link.split("/")[-1]
         status = ""
+        info(f"Got: {month}")
         if liste:
             table.add_row(month, price, status)
             continue
